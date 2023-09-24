@@ -11,6 +11,13 @@
 //----------------------------------------------------------------------------------
 // Local Variables Definition (local to this module)
 //----------------------------------------------------------------------------------
+
+const int screenWidth = 800;
+const int screenHeight = 450;
+
+const int gravityY = 250;
+const int jumpForce = -150;
+
 Texture2D bird_texture;
 Texture2D pipe_texture;
 
@@ -37,12 +44,6 @@ cpBody *pipeBody;
 static void UpdateDrawFrame(void); // Draw one frame
 static void UpdatePhysics(void);   // Make a step in the physics engine
 static void HandleInput(void);     // Capture user input and do stuff
-
-const int screenWidth = 800;
-const int screenHeight = 450;
-
-const int gravityY = 250;
-const int jumpForce = -150;
 
 //----------------------------------------------------------------------------------
 // Main entry point

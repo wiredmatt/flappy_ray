@@ -1,7 +1,5 @@
 # flappy_ray
 
-A Flappy Bird clone made in gool ol' C with raylib and flecs
-
 ## Build for desktop
 
 ```
@@ -81,9 +79,13 @@ Some C libraries are like this, the header is in a separate location and you nee
 
 ## Motivation
 
+I've always hated Unity, Unreal takes 16 minutes to load for me, Godot crashes constantly and GDScript is just horrible. 
+There are some good game frameworks out there, like FNA and Monogame, but they run with C#, which I also dislike.
+
+This is a little experiment to see if going barebones is doable and worth it. So far, the absolute lack of concrete examples to integrate the different libraries (windowing, physics, ecs, sounds) makes it hard to figure things out, hopefully this'll become a good starting point for everyone interested in making games this way.
 
 > "Seems like no one writes code anymore, they just glue together frameworks" - A random YouTube comment
 
-> "Beethoven wrote his simphony in C" - Another random YouTube comment
+> "Even Beethoven wrote his simphony in C" - Another random YouTube comment
 
 > "Nothing Better than C" - Linus Torvalds
