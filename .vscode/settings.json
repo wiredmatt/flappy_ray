@@ -4,6 +4,5 @@
     "raylib.h": "c",
     "chipmunk.h": "c",
     "chipmunk_structs.h": "c"
-  },
-  "C_Cpp.errorSquiggles": "disabled"
+  }
 }

@@ -31,8 +31,9 @@ emrun example.html #run
 ```
 mkdir flappy_ray
 cd flappy_ray
+mkdir src
 touch CMakeLists.txt
-touch main.c
+touch src/main.c
 ```
 
 CMake is actually very user friendly.
@@ -69,12 +70,13 @@ And with this, it makes the libraries accessible to your code, in src/\<file>.c
 ```CMake
 target_link_libraries(${PROJECT_NAME} raylib)
 target_link_libraries(${PROJECT_NAME} flecs)
+target_link_libraries(${PROJECT_NAME} chipmunk)
 ```
 
 Only consideration for the dependencies of this project is Chipmunk. As you can read in its declaration, it contains an additional instruction the other two don't have: 
 
 ```CMake
-include_directories(${chipmunk_SOURCE_DIR}/include/chipmunk)
+include_directories(${chipmunk_SOURCE_DIR}/include)
 ```
 
 Some C libraries are like this, the header is in a separate location and you need to manually specify it.
