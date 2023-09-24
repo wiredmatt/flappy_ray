@@ -92,6 +92,7 @@ int main() {
 #endif
 
   UnloadTexture(birdTexture);
+  UnloadTexture(pipeTexture);
 
   cpShapeFree(birdShape);
   cpShapeFree(pipeShape);
