@@ -12,17 +12,25 @@
 // Local Variables Definition (local to this module)
 //----------------------------------------------------------------------------------
 
-const int screenWidth = 800;
+struct Pipe {
+  int id;
+  cpBody *body;
+  cpShape *shape;
+};
+
+const int screenWidth = 600;
 const int screenHeight = 450;
 
 const int gravityY = 250;
 const int jumpForce = -150;
 
+const int PIPES_COUNT = 10;
+
 Texture2D birdTexture;
 Texture2D pipeTexture;
 
 cpFloat mass = 1;
-cpFloat radius = 5;
+cpFloat radius;
 cpFloat timeStep = 1.0 / 60.0;
 cpFloat moment;
 
@@ -35,8 +43,7 @@ cpBody *birdBody;
 cpVect birdPos;
 cpVect birdVel;
 
-cpShape *pipeShape;
-cpBody *pipeBody;
+struct Pipe pipes[] = {}; // 8 pipes in total (2 up and 2 down)
 
 //----------------------------------------------------------------------------------
 // Local Functions Declaration
@@ -44,6 +51,7 @@ cpBody *pipeBody;
 static void UpdateDrawFrame(void); // Draw one frame
 static void UpdatePhysics(void);   // Make a step in the physics engine
 static void HandleInput(void);     // Capture user input and do stuff
+static void DrawPipes(void);
 
 //----------------------------------------------------------------------------------
 // Main entry point
@@ -57,6 +65,8 @@ int main() {
   birdTexture = LoadTexture("resources/sprites/yellowbird-midflap.png");
   pipeTexture = LoadTexture("resources/sprites/pipe-green.png");
 
+  radius = birdTexture.height / 2; // TODO: Change player collision to use polygonshape instead
+
   gravity = cpv(0, gravityY);
   space = cpSpaceNew();
   cpSpaceSetGravity(space, gravity);
@@ -69,12 +79,32 @@ int main() {
   birdShape = cpSpaceAddShape(space, cpCircleShapeNew(birdBody, radius, cpvzero));
   cpShapeSetFriction(birdShape, 0.7);
 
-  pipeBody = cpSpaceAddBody(space, cpBodyNewStatic());
-  cpBodySetPosition(pipeBody, cpv(screenWidth / 3, screenHeight - 40));
+  for (int i = 0; i < PIPES_COUNT; i++) {
+    int x_offset_factor = i;
+    int yOffset = 0;
 
-  pipeShape = cpSpaceAddShape(
-      space, cpBoxShapeNew(pipeBody, pipeTexture.width, pipeTexture.height / screenHeight - 40, 1));
-  cpShapeSetFriction(pipeShape, 0.7);
+    if (i % 2 == 0) {
+      yOffset = -(pipeTexture.height / 2);
+    } else {
+      yOffset = -(pipeTexture.height);
+      x_offset_factor -= 1;
+    }
+
+    cpBody *pipeBody = cpSpaceAddBody(space, cpBodyNewKinematic());
+    cpBodySetPosition(pipeBody, cpv(screenWidth * 1.5 + pipeTexture.width - 100 * x_offset_factor,
+                                    screenHeight + yOffset));
+
+    cpShape *pipeShape =
+        cpSpaceAddShape(space, cpBoxShapeNew(pipeBody, pipeTexture.width, pipeTexture.height, 1));
+
+    cpShapeSetFriction(pipeShape, 0.7);
+
+    cpBodySetVelocity(pipeBody, cpv(-200, 0));
+
+    pipes[i].id = i;
+    pipes[i].body = pipeBody;
+    pipes[i].shape = pipeShape;
+  }
 
   //--------------------------------------------------------------------------------------
 
@@ -95,10 +125,10 @@ int main() {
   UnloadTexture(pipeTexture);
 
   cpShapeFree(birdShape);
-  cpShapeFree(pipeShape);
+  // cpShapeFree(pipeShape);
 
   cpBodyFree(birdBody);
-  cpBodyFree(pipeBody);
+  // cpBodyFree(pipeBody);
 
   cpSpaceFree(space);
   // De-Initialization
@@ -112,10 +142,20 @@ int main() {
 static void UpdatePhysics(void) {
   birdPos = cpBodyGetPosition(birdBody);
   birdVel = cpBodyGetVelocity(birdBody);
-  // uncomment if you want to debug
-  //   printf("Time is %5.2f. birdBody is at (%5.2f, %5.2f). It's birdVelocity is "
-  //          "(%5.2f, %5.2f)\n",
-  //          birdPos.x, birdPos.y, birdVel.x, birdVel.y);
+
+  for (int i = 0; i < PIPES_COUNT; i++) {
+    cpVect pipePos = cpBodyGetPosition(pipes[i].body);
+    int x_offset_factor = 0;
+
+    if (i % 2 != 0) {
+      x_offset_factor -= 1;
+    }
+
+    if (pipePos.x <= 0) {
+      cpBodySetPosition(pipes[i].body, cpv(screenWidth, pipePos.y));
+    }
+  }
+
   cpSpaceStep(space, timeStep);
 }
 
@@ -133,10 +173,10 @@ static void UpdateDrawFrame(void) {
 
   ClearBackground(RAYWHITE);
 
-  cpVect pipePos = cpBodyGetPosition(pipeBody);
-
   DrawTexture(birdTexture, birdPos.x, birdPos.y, WHITE);
-  DrawTexture(pipeTexture, pipePos.x, pipePos.y, WHITE);
+
+  DrawPipes();
+  // DrawTexture(pipeTexture, pipePos.x, pipePos.y, WHITE);
 
   // DrawText("This is a raylib example", 10, 40, 20, DARKGRAY);
 
@@ -148,5 +188,30 @@ static void UpdateDrawFrame(void) {
   // Update Physics, Input and Logic
   // ---------------------------------------------------------------------------------
   UpdatePhysics();
+  // UpdatePipes();
   HandleInput();
+}
+
+static void DrawPipes(void) {
+  for (int i = 0; i < PIPES_COUNT; i++) {
+    cpVect pipePos = cpBodyGetPosition(pipes[i].body);
+    int rotation = 0;
+    Vector2 origin = (Vector2){.x = 0, .y = 0};
+
+    if (i % 2 == 0) {
+      rotation = 0;
+    } else {
+      rotation = 180;
+      origin = (Vector2){.x = pipeTexture.width, .y = 0};
+    }
+
+    DrawTexturePro(
+        pipeTexture,
+        (Rectangle){.x = 0, .y = 0, .width = pipeTexture.width, .height = pipeTexture.height},
+        (Rectangle){.x = pipePos.x,
+                    .y = pipePos.y,
+                    .width = pipeTexture.width,
+                    .height = pipeTexture.height},
+        origin, rotation, WHITE);
+  }
 }
