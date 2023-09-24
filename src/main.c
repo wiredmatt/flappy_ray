@@ -94,7 +94,11 @@ int main() {
   UnloadTexture(birdTexture);
 
   cpShapeFree(birdShape);
+  cpShapeFree(pipeShape);
+
   cpBodyFree(birdBody);
+  cpBodyFree(pipeBody);
+
   cpSpaceFree(space);
   // De-Initialization
   //--------------------------------------------------------------------------------------
