@@ -12,6 +12,7 @@
 // Local Variables Definition (local to this module)
 //----------------------------------------------------------------------------------
 Texture2D bird_texture;
+Texture2D pipe_texture;
 
 cpFloat mass = 1;
 cpFloat radius = 5;
@@ -21,18 +22,27 @@ cpFloat moment;
 cpVect gravity;
 cpSpace *space;
 
+cpShape *birdShape;
 cpBody *birdBody;
-cpVect pos;
-cpVect vel;
+
+cpVect birdPos;
+cpVect birdVel;
+
+cpShape *pipeShape;
+cpBody *pipeBody;
+
 //----------------------------------------------------------------------------------
 // Local Functions Declaration
 //----------------------------------------------------------------------------------
-static void UpdateDrawFrame(void); // Update and draw one frame
+static void UpdateDrawFrame(void); // Draw one frame
+static void UpdatePhysics(void);   // Make a step in the physics engine
+static void HandleInput(void);     // Capture user input and do stuff
 
 const int screenWidth = 800;
 const int screenHeight = 450;
 
 const int gravityY = 250;
+const int jumpForce = -150;
 
 //----------------------------------------------------------------------------------
 // Main entry point
@@ -40,6 +50,11 @@ const int gravityY = 250;
 int main() {
   // Initialization
   //--------------------------------------------------------------------------------------
+
+  InitWindow(screenWidth, screenHeight, "raylib");
+
+  bird_texture = LoadTexture("resources/sprites/yellowbird-midflap.png");
+  pipe_texture = LoadTexture("resources/sprites/pipe-green.png");
 
   gravity = cpv(0, gravityY);
   space = cpSpaceNew();
@@ -50,8 +65,15 @@ int main() {
   birdBody = cpSpaceAddBody(space, cpBodyNew(mass, moment));
   cpBodySetPosition(birdBody, cpv(screenWidth / 3, screenHeight / 3));
 
-  InitWindow(screenWidth, screenHeight, "raylib");
-  bird_texture = LoadTexture("resources/sprites/yellowbird-midflap.png");
+  birdShape = cpSpaceAddShape(space, cpCircleShapeNew(birdBody, radius, cpvzero));
+  cpShapeSetFriction(birdShape, 0.7);
+
+  pipeBody = cpSpaceAddBody(space, cpBodyNewStatic());
+  cpBodySetPosition(pipeBody, cpv(screenWidth / 3, screenHeight - 40));
+
+  pipeShape = cpSpaceAddShape(
+      space, cpBoxShapeNew(pipeBody, pipe_texture.width, pipe_texture.height / screenHeight - 40, 1));
+  cpShapeSetFriction(pipeShape, 0.7);
 
   //--------------------------------------------------------------------------------------
 
@@ -70,6 +92,7 @@ int main() {
 
   UnloadTexture(bird_texture);
 
+  cpShapeFree(birdShape);
   cpBodyFree(birdBody);
   cpSpaceFree(space);
   // De-Initialization
@@ -81,13 +104,12 @@ int main() {
 }
 
 static void UpdatePhysics(void) {
-  pos = cpBodyGetPosition(birdBody);
-  vel = cpBodyGetVelocity(birdBody);
+  birdPos = cpBodyGetPosition(birdBody);
+  birdVel = cpBodyGetVelocity(birdBody);
   // uncomment if you want to debug
-  //   printf("Time is %5.2f. birdBody is at (%5.2f, %5.2f). It's velocity is "
+  //   printf("Time is %5.2f. birdBody is at (%5.2f, %5.2f). It's birdVelocity is "
   //          "(%5.2f, %5.2f)\n",
-  //          pos.x, pos.y, vel.x, vel.y);
-
+  //          birdPos.x, birdPos.y, birdVel.x, birdVel.y);
   cpSpaceStep(space, timeStep);
 }
 
@@ -105,7 +127,10 @@ static void UpdateDrawFrame(void) {
 
   ClearBackground(RAYWHITE);
 
-  DrawTexture(bird_texture, pos.x, pos.y, WHITE);
+  cpVect pipePos = cpBodyGetPosition(pipeBody);
+
+  DrawTexture(bird_texture, birdPos.x, birdPos.y, WHITE);
+  DrawTexture(pipe_texture, pipePos.x, pipePos.y, WHITE);
 
   // DrawText("This is a raylib example", 10, 40, 20, DARKGRAY);
 
