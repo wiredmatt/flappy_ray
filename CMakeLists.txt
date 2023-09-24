@@ -24,8 +24,8 @@ if (NOT raylib_FOUND) # If there's none, fetch and build raylib
 endif()
 
 set(FLECS_VERSION 3.2.7)
-find_package(flecs ${FLECS_VERSION} QUIET) # QUIET or REQUIRED
-if (NOT flecs_FOUND) # If there's none, fetch and build raylib
+find_package(flecs ${FLECS_VERSION} QUIET)
+if (NOT flecs_FOUND)
   include(FetchContent)
   FetchContent_Declare(
     flecs
@@ -33,11 +33,29 @@ if (NOT flecs_FOUND) # If there's none, fetch and build raylib
     URL https://github.com/SanderMertens/flecs/archive/refs/tags/v${FLECS_VERSION}.tar.gz
   )
   FetchContent_GetProperties(flecs)
-  if (NOT flecs_POPULATED) # Have we downloaded raylib yet?
+  if (NOT flecs_POPULATED) 
     set(FETCHCONTENT_QUIET NO)
     FetchContent_Populate(flecs)
-    set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE) # don't build the supplied examples
     add_subdirectory(${flecs_SOURCE_DIR} ${flecs_BINARY_DIR})
+  endif()
+endif()
+
+set(CHIPMUNK_VERSION 7.0.3)
+find_package(chipmunk ${CHIPMUNK_VERSION} QUIET)
+if (NOT chipmunk_FOUND)
+  include(FetchContent)
+  FetchContent_Declare(
+    chipmunk
+    DOWNLOAD_EXTRACT_TIMESTAMP OFF
+    URL https://github.com/slembcke/Chipmunk2D/archive/master.tar.gz # fetch the master branch, the 7.0.3 tag hasn't been updated in a while.
+  )
+  FetchContent_GetProperties(chipmunk)
+  if (NOT chipmunk_POPULATED)
+    set(FETCHCONTENT_QUIET NO)
+    FetchContent_Populate(chipmunk)
+    set(BUILD_DEMOS OFF CACHE BOOL "" FORCE) # don't build the supplied examples
+    add_subdirectory(${chipmunk_SOURCE_DIR} ${chipmunk_BINARY_DIR})
+    include_directories(${chipmunk_SOURCE_DIR}/include/chipmunk) # header files are separate from C impl.
   endif()
 endif()
 
@@ -45,9 +63,10 @@ endif()
 add_executable(${PROJECT_NAME} src/main.c)
 #set(raylib_VERBOSE 1)
 
-# link dependencies so we can do #include "raylib.h" and "flecs.h"
+# link dependencies so we can do #include "raylib.h", "flecs.h" and "chipmunk.h"
 target_link_libraries(${PROJECT_NAME} raylib)
 target_link_libraries(${PROJECT_NAME} flecs)
+target_link_libraries(${PROJECT_NAME} chipmunk)
 
 
 # Web Configurations

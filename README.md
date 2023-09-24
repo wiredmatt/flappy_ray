@@ -71,6 +71,14 @@ target_link_libraries(${PROJECT_NAME} raylib)
 target_link_libraries(${PROJECT_NAME} flecs)
 ```
 
+Only consideration for the dependencies of this project is Chipmunk. As you can read in its declaration, it contains an additional instruction the other two don't have: 
+
+```CMake
+include_directories(${chipmunk_SOURCE_DIR}/include/chipmunk)
+```
+
+Some C libraries are like this, the header is in a separate location and you need to manually specify it.
+
 ## Motivation
 
 

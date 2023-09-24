@@ -1,6 +1,8 @@
 {
   "files.associations": {
-    "flecs.h": "c"
+    "flecs.h": "c",
+    "raylib.h": "c",
+    "chipmunk.h": "c"
   },
   "C_Cpp.errorSquiggles": "disabled"
 }
