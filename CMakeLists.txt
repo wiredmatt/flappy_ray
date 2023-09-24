@@ -55,7 +55,7 @@ if (NOT chipmunk_FOUND)
     FetchContent_Populate(chipmunk)
     set(BUILD_DEMOS OFF CACHE BOOL "" FORCE) # don't build the supplied examples
     add_subdirectory(${chipmunk_SOURCE_DIR} ${chipmunk_BINARY_DIR})
-    include_directories(${chipmunk_SOURCE_DIR}/include/chipmunk) # header files are separate from C impl.
+    include_directories(${chipmunk_SOURCE_DIR}/include) # header files are separate from C impl.
   endif()
 endif()
 
