@@ -1,5 +1,7 @@
 # flappy_ray
 
+A Flappy Bird clone in Good Ol' C.
+
 ## Build for desktop
 
 ```

@@ -18,8 +18,8 @@ const int screenHeight = 450;
 const int gravityY = 250;
 const int jumpForce = -150;
 
-Texture2D bird_texture;
-Texture2D pipe_texture;
+Texture2D birdTexture;
+Texture2D pipeTexture;
 
 cpFloat mass = 1;
 cpFloat radius = 5;
@@ -54,8 +54,8 @@ int main() {
 
   InitWindow(screenWidth, screenHeight, "raylib");
 
-  bird_texture = LoadTexture("resources/sprites/yellowbird-midflap.png");
-  pipe_texture = LoadTexture("resources/sprites/pipe-green.png");
+  birdTexture = LoadTexture("resources/sprites/yellowbird-midflap.png");
+  pipeTexture = LoadTexture("resources/sprites/pipe-green.png");
 
   gravity = cpv(0, gravityY);
   space = cpSpaceNew();
@@ -73,7 +73,7 @@ int main() {
   cpBodySetPosition(pipeBody, cpv(screenWidth / 3, screenHeight - 40));
 
   pipeShape = cpSpaceAddShape(
-      space, cpBoxShapeNew(pipeBody, pipe_texture.width, pipe_texture.height / screenHeight - 40, 1));
+      space, cpBoxShapeNew(pipeBody, pipeTexture.width, pipeTexture.height / screenHeight - 40, 1));
   cpShapeSetFriction(pipeShape, 0.7);
 
   //--------------------------------------------------------------------------------------
@@ -91,7 +91,7 @@ int main() {
   }
 #endif
 
-  UnloadTexture(bird_texture);
+  UnloadTexture(birdTexture);
 
   cpShapeFree(birdShape);
   cpBodyFree(birdBody);
@@ -116,7 +116,7 @@ static void UpdatePhysics(void) {
 
 static void HandleInput(void) {
   if (IsKeyDown(KEY_SPACE)) {
-    cpBodySetVelocity(birdBody, cpv(0, -150));
+    cpBodySetVelocity(birdBody, cpv(0, jumpForce));
   }
 }
 
@@ -130,8 +130,8 @@ static void UpdateDrawFrame(void) {
 
   cpVect pipePos = cpBodyGetPosition(pipeBody);
 
-  DrawTexture(bird_texture, birdPos.x, birdPos.y, WHITE);
-  DrawTexture(pipe_texture, pipePos.x, pipePos.y, WHITE);
+  DrawTexture(birdTexture, birdPos.x, birdPos.y, WHITE);
+  DrawTexture(pipeTexture, pipePos.x, pipePos.y, WHITE);
 
   // DrawText("This is a raylib example", 10, 40, 20, DARKGRAY);
 
