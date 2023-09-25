@@ -40,7 +40,7 @@
 #define SCREEN_WIDTH 400
 #define SCREEN_HEIGHT 600
 #define PIPES_QTY 8
-#define PIPE_BASE_VEL -15.0f
+#define PIPE_BASE_VEL -12.0f
 #define JUMP_FORCE -20.0f
 
 /* Constants ============================================================================ */
@@ -98,8 +98,8 @@ int main(void) {
 static void InitExample(void) {
   pipeTexture = LoadTexture("resources/sprites/pipe-green.png");
   birdTexture = LoadTexture("resources/sprites/yellowbird-midflap.png");
-  highestLowerY = SCREEN_HEIGHT - pipeTexture.height * 2;
-  lowestLowerY = pipeTexture.height + pipeTexture.height / 2;
+  highestLowerY = pipeTexture.height + 120;
+  lowestLowerY = SCREEN_HEIGHT - pipeTexture.height;
 
   world = frCreateWorld(frVector2ScalarMultiply(FR_WORLD_DEFAULT_GRAVITY, 5.0f), CELL_SIZE);
 
@@ -199,7 +199,7 @@ static void DrawPipes(void) {
   }
 }
 
-static int randomYOffset() { return lowestLowerY + rand() % highestLowerY; }
+static int randomYOffset() { return (rand() % (lowestLowerY - highestLowerY + 1)) + highestLowerY; }
 
 static void UpdatePipes(void) {
   int yOffset;
