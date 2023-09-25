@@ -37,9 +37,10 @@
 
 #define TARGET_FPS 60
 
-#define SCREEN_WIDTH 800
+#define SCREEN_WIDTH 400
 #define SCREEN_HEIGHT 600
 #define PIPES_QTY 8
+#define PIPE_BASE_VEL -20.0f
 
 /* Constants ============================================================================ */
 
@@ -61,6 +62,7 @@ static void InitExample(void);
 static void UpdateExample(void);
 static void DeinitExample(void);
 static void DrawPipes(void);
+static void UpdatePipes(void);
 
 /* Public Functions ===================================================================== */
 
@@ -121,7 +123,7 @@ static void InitExample(void) {
         frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f},
                           frPixelsToUnits(pipeTexture.width), frPixelsToUnits(pipeTexture.height)));
 
-    frSetBodyVelocity(movingPipe, (frVector2){.x = -10.0f, .y = 0.0f});
+    frSetBodyVelocity(movingPipe, (frVector2){.x = PIPE_BASE_VEL, .y = 0.0f});
     frAddBodyToWorld(world, movingPipe);
   }
 
@@ -144,8 +146,9 @@ static void HandleInput(void) {
 
 static void UpdateExample(void) {
   frUpdateWorld(world, DELTA_TIME);
-  HandleInput();
   frVector2 birdPos = frVector2UnitsToPixels(frGetBodyPosition(box));
+  HandleInput();
+  UpdatePipes();
 
   {
     BeginDrawing();
@@ -190,6 +193,19 @@ static void DrawPipes(void) {
                     .width = pipeTexture.width,
                     .height = pipeTexture.height},
         (Vector2){.x = pipeTexture.width / 2, .y = pipeTexture.height / 2}, rotation, WHITE);
+  }
+}
+
+static void UpdatePipes(void) {
+  for (int i = 0; i < PIPES_QTY; i++) {
+    frBody *pipeBody = frGetBodyFromWorld(world, i);
+    frVector2 pipePos = frVector2UnitsToPixels(frGetBodyPosition(pipeBody));
+
+    if (pipePos.x <= 0) {
+      frSetBodyPosition(pipeBody,
+                        frVector2PixelsToUnits((frVector2){
+                            .x = SCREEN_WIDTH * 1.5 + pipeTexture.width + 100, .y = pipePos.y}));
+    }
   }
 }
 
