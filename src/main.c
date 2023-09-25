@@ -1,23 +1,6 @@
 /*
-    Copyright (c) 2021-2023 Jaedeok Kim <jdeokkim@protonmail.com>
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+    Based off: https://github.com/c-krit/ferox/blob/main/examples/src/basic.c
+    By: Jaedeok Kim <jdeokkim@protonmail.com>
 */
 
 /* Includes ============================================================================= */
@@ -40,7 +23,8 @@
 #define SCREEN_WIDTH 400
 #define SCREEN_HEIGHT 600
 #define PIPES_QTY 8
-#define PIPE_BASE_VEL -12.0f
+#define SPACE_BETWEEN_PIPES 120
+#define PIPE_VELOCITY -12.0f
 #define JUMP_FORCE -20.0f
 
 /* Constants ============================================================================ */
@@ -51,14 +35,14 @@ static const float CELL_SIZE = 4.0f, DELTA_TIME = 1.0f / TARGET_FPS;
 
 static frWorld *world;
 
-static frBody *birdBody, *ground;
-
-static Texture2D pipeTexture, birdTexture;
+static frBody *birdBody;
 
 static Rectangle bounds = {.width = SCREEN_WIDTH, .height = SCREEN_HEIGHT};
 
 static int lowestLowerY;
 static int highestLowerY;
+
+static Texture2D pipeTexture, birdTexture, backgroundDayTexture;
 
 /* Private Function Prototypes ========================================================== */
 
@@ -69,6 +53,8 @@ static void DrawPipes(void);
 static void UpdatePipes(void);
 
 /* Public Functions ===================================================================== */
+
+int randomYOffset() { return (rand() % (lowestLowerY - highestLowerY + 1)) + highestLowerY; }
 
 int main(void) {
   SetConfigFlags(FLAG_MSAA_4X_HINT);
@@ -96,50 +82,66 @@ int main(void) {
 /* Private Functions ==================================================================== */
 
 static void InitExample(void) {
+  /**
+   * Load the sprites to use
+   */
   pipeTexture = LoadTexture("resources/sprites/pipe-green.png");
   birdTexture = LoadTexture("resources/sprites/yellowbird-midflap.png");
+  backgroundDayTexture = LoadTexture("resources/sprites/background-day.png");
+
+  /**
+   * Define the range in which the lower pipes can be generated
+   * "highest" is the closest to y=0
+   * "lowest" is the closest to y=SCREEN_HEIGHT
+   * -------x- y = 0
+   * |       |
+   * |       |
+   * |       |
+   * |      x| y = HIGHEST LOWER -> highest Y position in which the pipe can be generated
+   * |       |
+   * |       |
+   * |       |
+   * |      x| y = LOWEST LOWER -> lowest Y position in which the pipe can be generated
+   * |       |
+   * |------x- y = SCREEN_HEIGHT
+   */
   highestLowerY = pipeTexture.height + 120;
   lowestLowerY = SCREEN_HEIGHT - pipeTexture.height;
 
+  // To simulate physics, a `world` needs to be created.
+  // It requires `gravity` and a `cell size`, the later being used to compute collisions
+  // with more precission
   world = frCreateWorld(frVector2ScalarMultiply(FR_WORLD_DEFAULT_GRAVITY, 5.0f), CELL_SIZE);
 
-  ground = frCreateBodyFromShape(
-      FR_BODY_STATIC,
-      frVector2PixelsToUnits((frVector2){.x = 0.5f * SCREEN_WIDTH, .y = 0.85f * SCREEN_HEIGHT}),
-      frCreateRectangle((frMaterial){.density = 1.25f, .friction = 0.5f},
-                        frPixelsToUnits(0.75f * SCREEN_WIDTH),
-                        frPixelsToUnits(0.1f * SCREEN_HEIGHT)));
+  int yOffset;
 
   for (int i = 0; i < PIPES_QTY; i++) {
-    int x_offset_factor = i;
-    int yOffset = 0;
+    int xOffsetFactor = i;
 
-    if (i % 2 == 0) {
-      yOffset = -(pipeTexture.height / 4);
-    } else {
-      yOffset = -(pipeTexture.height) * 2;
-      x_offset_factor -= 1;
+    if (i % 2 == 0) { // LOWER PIPES
+      yOffset = randomYOffset();
+    } else { // UPPER PIPES
+      yOffset = yOffset - pipeTexture.height - SPACE_BETWEEN_PIPES;
+      xOffsetFactor -= 1;
     }
 
-    frBody *movingPipe = frCreateBodyFromShape(
-        FR_BODY_KINEMATIC,
-        frVector2PixelsToUnits(
-            (frVector2){.x = SCREEN_WIDTH * 1.5 + pipeTexture.width + 100 * x_offset_factor,
-                        .y = SCREEN_HEIGHT + yOffset}),
+    frBody *pipeBody = frCreateBodyFromShape(
+        FR_BODY_KINEMATIC, // It collides but doesn't fall to gravity.
+        frVector2PixelsToUnits((frVector2){
+            .x = SCREEN_WIDTH * 1.25 + pipeTexture.width + 100 * xOffsetFactor, .y = yOffset}),
         frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f},
                           frPixelsToUnits(pipeTexture.width), frPixelsToUnits(pipeTexture.height)));
 
-    frSetBodyVelocity(movingPipe, (frVector2){.x = PIPE_BASE_VEL, .y = 0.0f});
-    frAddBodyToWorld(world, movingPipe);
+    frSetBodyVelocity(pipeBody, (frVector2){.x = PIPE_VELOCITY, .y = 0.0f});
+    frAddBodyToWorld(world, pipeBody);
   }
 
   birdBody = frCreateBodyFromShape(
-      FR_BODY_DYNAMIC,
+      FR_BODY_DYNAMIC, // It collides and falls to gravity.
       frVector2PixelsToUnits((frVector2){.x = 0.5f * SCREEN_WIDTH, .y = 0.35f * SCREEN_HEIGHT}),
       frCreateCircle((frMaterial){.density = 1.0f, .friction = 0.35f}, birdTexture.height / 14));
 
   frAddBodyToWorld(world, birdBody);
-  frAddBodyToWorld(world, ground);
 }
 
 static void HandleInput(void) {
@@ -159,14 +161,15 @@ static void UpdateExample(void) {
 
     ClearBackground(FR_DRAW_COLOR_MATTEBLACK);
 
-    frDrawGrid(bounds, CELL_SIZE, 0.25f, ColorAlpha(DARKGRAY, 0.75f));
-
-    frDrawBodyLines(ground, 1.0f, GRAY);
-
-    frDrawBodyLines(birdBody, 1.0f, BLUE);
-    DrawTexture(birdTexture, birdPos.x - 15, birdPos.y - 10, WHITE);
+    DrawTextureEx(backgroundDayTexture, (Vector2){0, 0}, 0.0f, 1.4f, WHITE);
 
     DrawPipes();
+
+    // frDrawGrid(bounds, CELL_SIZE, 0.25f, ColorAlpha(DARKGRAY, 0.75f)); -> debug with cells
+
+    // Draw player with collision shape in blue
+    frDrawBodyLines(birdBody, 1.0f, BLUE);
+    DrawTexture(birdTexture, birdPos.x - 15, birdPos.y - 10, WHITE);
 
     DrawFPS(8, 8);
 
@@ -199,36 +202,30 @@ static void DrawPipes(void) {
   }
 }
 
-static int randomYOffset() { return (rand() % (lowestLowerY - highestLowerY + 1)) + highestLowerY; }
-
 static void UpdatePipes(void) {
   int yOffset;
 
   for (int i = 0; i < PIPES_QTY; i++) {
-
     if (i % 2 == 0) { // LOWER PIPES
       yOffset = randomYOffset();
     } else { // UPPER PIPES
-      yOffset = yOffset - pipeTexture.height - 120;
+      yOffset = yOffset - pipeTexture.height - SPACE_BETWEEN_PIPES;
     }
 
     frBody *pipeBody = frGetBodyFromWorld(world, i);
     frVector2 pipePos = frVector2UnitsToPixels(frGetBodyPosition(pipeBody));
 
     if (pipePos.x <= -pipeTexture.width) {
-      frSetBodyPosition(pipeBody,
-                        frVector2PixelsToUnits((frVector2){
-                            .x = SCREEN_WIDTH * 1.5 + pipeTexture.width + 100, .y = yOffset}));
+      frSetBodyPosition(pipeBody, frVector2PixelsToUnits((frVector2){
+                                      .x = SCREEN_WIDTH * 1.75 + pipeTexture.width, .y = yOffset}));
     }
   }
 }
 
 static void DeinitExample(void) {
-
   /**
    * Ferox stuff - No need to release bodies.
    */
-  frReleaseShape(frGetBodyShape(ground));
   frReleaseShape(frGetBodyShape(birdBody));
   for (int i = 0; i < PIPES_QTY; i++) {
     frBody *pipeBody = frGetBodyFromWorld(world, i);
@@ -241,4 +238,5 @@ static void DeinitExample(void) {
    */
   UnloadTexture(pipeTexture);
   UnloadTexture(birdTexture);
+  UnloadTexture(backgroundDayTexture);
 }
