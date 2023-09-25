@@ -40,22 +40,20 @@ if (NOT flecs_FOUND)
   endif()
 endif()
 
-set(CHIPMUNK_VERSION 7.0.3)
-find_package(chipmunk ${CHIPMUNK_VERSION} QUIET)
-if (NOT chipmunk_FOUND)
+set(ferox_VERSION 1)
+find_package(ferox ${ferox_VERSION} QUIET)
+if (NOT ferox_FOUND)
   include(FetchContent)
   FetchContent_Declare(
-    chipmunk
+    ferox
     DOWNLOAD_EXTRACT_TIMESTAMP OFF
-    URL https://github.com/slembcke/Chipmunk2D/archive/master.tar.gz # fetch the master branch, the 7.0.3 tag hasn't been updated in a while.
+    URL https://github.com/c-krit/ferox/archive/main.tar.gz
   )
-  FetchContent_GetProperties(chipmunk)
-  if (NOT chipmunk_POPULATED)
+  FetchContent_GetProperties(ferox)
+  if (NOT ferox_POPULATED)
     set(FETCHCONTENT_QUIET NO)
-    FetchContent_Populate(chipmunk)
-    set(BUILD_DEMOS OFF CACHE BOOL "" FORCE) # don't build the supplied examples
-    add_subdirectory(${chipmunk_SOURCE_DIR} ${chipmunk_BINARY_DIR})
-    include_directories(${chipmunk_SOURCE_DIR}/include) # header files are separate from C impl.
+    FetchContent_Populate(ferox)
+    include_directories(${ferox_SOURCE_DIR}/include) # header files are separate from C impl.
   endif()
 endif()
 
@@ -63,10 +61,10 @@ endif()
 add_executable(${PROJECT_NAME} src/main.c)
 #set(raylib_VERBOSE 1)
 
-# link dependencies so we can do #include "raylib.h", "flecs.h" and "chipmunk.h"
+# link dependencies so we can do #include "raylib.h", "flecs.h" and "ferox.h"
 target_link_libraries(${PROJECT_NAME} raylib)
 target_link_libraries(${PROJECT_NAME} flecs)
-target_link_libraries(${PROJECT_NAME} chipmunk)
+target_link_libraries(${PROJECT_NAME} ferox)
 
 
 # Web Configurations

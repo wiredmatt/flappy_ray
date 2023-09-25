@@ -1,12 +1,15 @@
 #include <stdio.h>
 
-#include <chipmunk/chipmunk.h>
-#include <chipmunk/chipmunk_structs.h>
+#include <ferox.h>
 #include <raylib.h>
 
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
 #endif
+
+#define TARGET_FPS 60
+
+static const float CELL_SIZE = 4.0f, DELTA_TIME = 1.0f / TARGET_FPS;
 
 //----------------------------------------------------------------------------------
 // Local Variables Definition (local to this module)
@@ -14,8 +17,8 @@
 
 struct Pipe {
   int id;
-  cpBody *body;
-  cpShape *shape;
+  frBody *body;
+  frShape *shape;
 };
 
 const int screenWidth = 600;
@@ -29,19 +32,18 @@ const int PIPES_COUNT = 10;
 Texture2D birdTexture;
 Texture2D pipeTexture;
 
-cpFloat mass = 1;
-cpFloat radius;
-cpFloat timeStep = 1.0 / 60.0;
-cpFloat moment;
+float mass = 1;
+float radius;
+float timeStep = 1.0 / 60.0;
+float moment;
 
-cpVect gravity;
-cpSpace *space;
+frBody *birdBody;
+frShape *birdShape;
 
-cpShape *birdShape;
-cpBody *birdBody;
+frTransform birdPos;
+frVector2 birdVel;
 
-cpVect birdPos;
-cpVect birdVel;
+static frWorld *world;
 
 struct Pipe pipes[] = {}; // 8 pipes in total (2 up and 2 down)
 
@@ -67,17 +69,15 @@ int main() {
 
   radius = birdTexture.height / 2; // TODO: Change player collision to use polygonshape instead
 
-  gravity = cpv(0, gravityY);
-  space = cpSpaceNew();
-  cpSpaceSetGravity(space, gravity);
+  world = frCreateWorld(frVector2ScalarMultiply(FR_WORLD_DEFAULT_GRAVITY, 4.0f), CELL_SIZE);
 
-  moment = cpMomentForCircle(mass, 0, radius, cpvzero);
+  birdBody = frCreateBodyFromShape(
+      FR_BODY_DYNAMIC,
+      frVector2PixelsToUnits((frVector2){.x = screenWidth / 3, .y = screenHeight / 3}),
+      frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f},
+                        frPixelsToUnits(birdTexture.width), frPixelsToUnits(birdTexture.height)));
 
-  birdBody = cpSpaceAddBody(space, cpBodyNew(mass, moment));
-  cpBodySetPosition(birdBody, cpv(screenWidth / 3, screenHeight / 3));
-
-  birdShape = cpSpaceAddShape(space, cpCircleShapeNew(birdBody, radius, cpvzero));
-  cpShapeSetFriction(birdShape, 0.7);
+  frAddBodyToWorld(world, birdBody);
 
   for (int i = 0; i < PIPES_COUNT; i++) {
     int x_offset_factor = i;
@@ -90,20 +90,20 @@ int main() {
       x_offset_factor -= 1;
     }
 
-    cpBody *pipeBody = cpSpaceAddBody(space, cpBodyNewKinematic());
-    cpBodySetPosition(pipeBody, cpv(screenWidth * 1.5 + pipeTexture.width - 100 * x_offset_factor,
-                                    screenHeight + yOffset));
+    frBody *pipeBody = frCreateBodyFromShape(
+        FR_BODY_DYNAMIC,
+        frVector2PixelsToUnits(
+            (frVector2){.x = screenWidth * 1.5 + pipeTexture.width - 100 * x_offset_factor,
+                        .y = screenHeight + yOffset}),
+        frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f},
+                          frPixelsToUnits(birdTexture.width), frPixelsToUnits(birdTexture.height)));
 
-    cpShape *pipeShape =
-        cpSpaceAddShape(space, cpBoxShapeNew(pipeBody, pipeTexture.width, pipeTexture.height, 1));
+    frAddBodyToWorld(world, pipeBody);
 
-    cpShapeSetFriction(pipeShape, 0.7);
-
-    cpBodySetVelocity(pipeBody, cpv(-200, 0));
+    frSetBodyVelocity(pipeBody, (frVector2){.x = 50, .y = 0});
 
     pipes[i].id = i;
     pipes[i].body = pipeBody;
-    pipes[i].shape = pipeShape;
   }
 
   //--------------------------------------------------------------------------------------
@@ -124,13 +124,6 @@ int main() {
   UnloadTexture(birdTexture);
   UnloadTexture(pipeTexture);
 
-  cpShapeFree(birdShape);
-  // cpShapeFree(pipeShape);
-
-  cpBodyFree(birdBody);
-  // cpBodyFree(pipeBody);
-
-  cpSpaceFree(space);
   // De-Initialization
   //--------------------------------------------------------------------------------------
   CloseWindow(); // Close window and OpenGL context
@@ -139,29 +132,9 @@ int main() {
   return 0;
 }
 
-static void UpdatePhysics(void) {
-  birdPos = cpBodyGetPosition(birdBody);
-  birdVel = cpBodyGetVelocity(birdBody);
-
-  for (int i = 0; i < PIPES_COUNT; i++) {
-    cpVect pipePos = cpBodyGetPosition(pipes[i].body);
-    int x_offset_factor = 0;
-
-    if (i % 2 != 0) {
-      x_offset_factor -= 1;
-    }
-
-    if (pipePos.x <= 0) {
-      cpBodySetPosition(pipes[i].body, cpv(screenWidth, pipePos.y));
-    }
-  }
-
-  cpSpaceStep(space, timeStep);
-}
-
 static void HandleInput(void) {
   if (IsKeyDown(KEY_SPACE)) {
-    cpBodySetVelocity(birdBody, cpv(0, jumpForce));
+    frSetBodyVelocity(birdBody, (frVector2){.x = 0, .y = jumpForce});
   }
 }
 
@@ -173,7 +146,7 @@ static void UpdateDrawFrame(void) {
 
   ClearBackground(RAYWHITE);
 
-  DrawTexture(birdTexture, birdPos.x, birdPos.y, WHITE);
+  DrawTexture(birdTexture, birdPos.position.x, birdPos.position.y, WHITE);
 
   DrawPipes();
   // DrawTexture(pipeTexture, pipePos.x, pipePos.y, WHITE);
@@ -192,9 +165,31 @@ static void UpdateDrawFrame(void) {
   HandleInput();
 }
 
+static void UpdatePhysics(void) {
+
+  for (int i = 0; i < PIPES_COUNT; i++) {
+    frTransform pipePos = frGetBodyTransform(pipes[i].body);
+    int x_offset_factor = 0;
+
+    if (i % 2 != 0) {
+      x_offset_factor -= 1;
+    }
+
+    if (pipePos.position.x <= 0) {
+      frSetBodyTransform(pipes[i].body, (frTransform){.angle = pipePos.angle,
+                                                      .rotation = pipePos.rotation,
+                                                      .position = screenWidth,
+                                                      pipePos.position.y});
+    }
+  }
+
+  frUpdateWorld(world, DELTA_TIME);
+}
+
 static void DrawPipes(void) {
   for (int i = 0; i < PIPES_COUNT; i++) {
-    cpVect pipePos = cpBodyGetPosition(pipes[i].body);
+    frTransform pipePos = frGetBodyTransform(pipes[i].body);
+
     int rotation = 0;
     Vector2 origin = (Vector2){.x = 0, .y = 0};
 
@@ -208,8 +203,8 @@ static void DrawPipes(void) {
     DrawTexturePro(
         pipeTexture,
         (Rectangle){.x = 0, .y = 0, .width = pipeTexture.width, .height = pipeTexture.height},
-        (Rectangle){.x = pipePos.x,
-                    .y = pipePos.y,
+        (Rectangle){.x = pipePos.position.x,
+                    .y = pipePos.position.y,
                     .width = pipeTexture.width,
                     .height = pipeTexture.height},
         origin, rotation, WHITE);
