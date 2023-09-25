@@ -3,6 +3,8 @@
     "flecs.h": "c",
     "raylib.h": "c",
     "chipmunk.h": "c",
-    "chipmunk_structs.h": "c"
+    "chipmunk_structs.h": "c",
+    "ferox.h": "c",
+    "*.m": "c"
   }
 }

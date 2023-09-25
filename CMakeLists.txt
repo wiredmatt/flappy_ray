@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.11) # FetchContent is available in 3.11+
-project(flappy_ray)
+project(example)
 
 # Generate compile_commands.json
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -23,49 +23,40 @@ if (NOT raylib_FOUND) # If there's none, fetch and build raylib
   endif()
 endif()
 
-set(FLECS_VERSION 3.2.7)
-find_package(flecs ${FLECS_VERSION} QUIET)
-if (NOT flecs_FOUND)
-  include(FetchContent)
-  FetchContent_Declare(
-    flecs
-    DOWNLOAD_EXTRACT_TIMESTAMP OFF
-    URL https://github.com/SanderMertens/flecs/archive/refs/tags/v${FLECS_VERSION}.tar.gz
-  )
-  FetchContent_GetProperties(flecs)
-  if (NOT flecs_POPULATED) 
-    set(FETCHCONTENT_QUIET NO)
-    FetchContent_Populate(flecs)
-    add_subdirectory(${flecs_SOURCE_DIR} ${flecs_BINARY_DIR})
-  endif()
+include(FetchContent)
+FetchContent_Declare(
+	ferox
+	GIT_REPOSITORY
+	https://github.com/c-krit/ferox
+	GIT_TAG main
+)
+FetchContent_GetProperties(ferox)
+if (NOT ferox_POPULATED) # Have we downloaded raylib yet?
+	set(FETCHCONTENT_QUIET NO)
+	FetchContent_Populate(ferox)
 endif()
 
-set(ferox_VERSION 1)
-find_package(ferox ${ferox_VERSION} QUIET)
-if (NOT ferox_FOUND)
-  include(FetchContent)
-  FetchContent_Declare(
-    ferox
-    DOWNLOAD_EXTRACT_TIMESTAMP OFF
-    URL https://github.com/c-krit/ferox/archive/main.tar.gz
-  )
-  FetchContent_GetProperties(ferox)
-  if (NOT ferox_POPULATED)
-    set(FETCHCONTENT_QUIET NO)
-    FetchContent_Populate(ferox)
-    include_directories(${ferox_SOURCE_DIR}/include) # header files are separate from C impl.
-  endif()
-endif()
+add_library(ferox STATIC
+	${ferox_SOURCE_DIR}/src/broad-phase.c
+	${ferox_SOURCE_DIR}/src/collision.c
+	${ferox_SOURCE_DIR}/src/geometry.c
+	${ferox_SOURCE_DIR}/src/rigid-body.c
+	${ferox_SOURCE_DIR}/src/timer.c
+	${ferox_SOURCE_DIR}/src/world.c
+)
+target_include_directories(ferox PUBLIC
+	${ferox_SOURCE_DIR}/include
+	${ferox_SOURCE_DIR}/examples/include
+)
+target_include_directories(ferox PRIVATE
+	${ferox_SOURCE_DIR}/ferox/src/external
+)
 
 # Our Project
-add_executable(${PROJECT_NAME} src/main.c)
+
+add_executable(${PROJECT_NAME} src/basic.c)
 #set(raylib_VERBOSE 1)
-
-# link dependencies so we can do #include "raylib.h", "flecs.h" and "ferox.h"
-target_link_libraries(${PROJECT_NAME} raylib)
-target_link_libraries(${PROJECT_NAME} flecs)
-target_link_libraries(${PROJECT_NAME} ferox)
-
+target_link_libraries(${PROJECT_NAME} raylib ferox)
 
 # Web Configurations
 if (${PLATFORM} STREQUAL "Web")

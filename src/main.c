@@ -18,7 +18,6 @@ static const float CELL_SIZE = 4.0f, DELTA_TIME = 1.0f / TARGET_FPS;
 struct Pipe {
   int id;
   frBody *body;
-  frShape *shape;
 };
 
 const int screenWidth = 600;
@@ -27,7 +26,7 @@ const int screenHeight = 450;
 const int gravityY = 250;
 const int jumpForce = -150;
 
-const int PIPES_COUNT = 10;
+const int PIPES_COUNT = 8;
 
 Texture2D birdTexture;
 Texture2D pipeTexture;
@@ -39,9 +38,6 @@ float moment;
 
 frBody *birdBody;
 frShape *birdShape;
-
-frTransform birdPos;
-frVector2 birdVel;
 
 static frWorld *world;
 
@@ -69,15 +65,7 @@ int main() {
 
   radius = birdTexture.height / 2; // TODO: Change player collision to use polygonshape instead
 
-  world = frCreateWorld(frVector2ScalarMultiply(FR_WORLD_DEFAULT_GRAVITY, 4.0f), CELL_SIZE);
-
-  birdBody = frCreateBodyFromShape(
-      FR_BODY_DYNAMIC,
-      frVector2PixelsToUnits((frVector2){.x = screenWidth / 3, .y = screenHeight / 3}),
-      frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f},
-                        frPixelsToUnits(birdTexture.width), frPixelsToUnits(birdTexture.height)));
-
-  frAddBodyToWorld(world, birdBody);
+  world = frCreateWorld(frVector2ScalarMultiply(FR_WORLD_DEFAULT_GRAVITY, 20.0f), CELL_SIZE);
 
   for (int i = 0; i < PIPES_COUNT; i++) {
     int x_offset_factor = i;
@@ -91,20 +79,25 @@ int main() {
     }
 
     frBody *pipeBody = frCreateBodyFromShape(
-        FR_BODY_DYNAMIC,
+        FR_BODY_KINEMATIC,
         frVector2PixelsToUnits(
-            (frVector2){.x = screenWidth * 1.5 + pipeTexture.width - 100 * x_offset_factor,
+            (frVector2){.x = screenWidth * 1.5 + pipeTexture.width + 100 * x_offset_factor,
                         .y = screenHeight + yOffset}),
         frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f},
-                          frPixelsToUnits(birdTexture.width), frPixelsToUnits(birdTexture.height)));
+                          frPixelsToUnits(pipeTexture.width), frPixelsToUnits(pipeTexture.height)));
 
     frAddBodyToWorld(world, pipeBody);
-
-    frSetBodyVelocity(pipeBody, (frVector2){.x = 50, .y = 0});
-
-    pipes[i].id = i;
-    pipes[i].body = pipeBody;
+    frSetBodyVelocity(pipeBody, (frVector2){.x = -10.0f, .y = 0.0f});
   }
+
+  birdBody = frCreateBodyFromShape(
+      FR_BODY_DYNAMIC,
+      frVector2PixelsToUnits((frVector2){.x = screenWidth / 2, .y = screenHeight / 3}),
+      // frCreateCircle((frMaterial){.density = 10.0f, .friction = 2.0f}, radius));
+      frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f},
+                        frPixelsToUnits(birdTexture.width), frPixelsToUnits(birdTexture.height)));
+
+  frAddBodyToWorld(world, birdBody);
 
   //--------------------------------------------------------------------------------------
 
@@ -146,7 +139,9 @@ static void UpdateDrawFrame(void) {
 
   ClearBackground(RAYWHITE);
 
-  DrawTexture(birdTexture, birdPos.position.x, birdPos.position.y, WHITE);
+  frVector2 birdPos = frGetBodyPosition(birdBody);
+
+  DrawTexture(birdTexture, birdPos.x, birdPos.y, WHITE);
 
   DrawPipes();
   // DrawTexture(pipeTexture, pipePos.x, pipePos.y, WHITE);
@@ -168,18 +163,11 @@ static void UpdateDrawFrame(void) {
 static void UpdatePhysics(void) {
 
   for (int i = 0; i < PIPES_COUNT; i++) {
-    frTransform pipePos = frGetBodyTransform(pipes[i].body);
-    int x_offset_factor = 0;
+    frBody *pipeBody = frGetBodyFromWorld(world, i);
+    frVector2 pipePos = frVector2UnitsToPixels(frGetBodyPosition(pipeBody));
 
-    if (i % 2 != 0) {
-      x_offset_factor -= 1;
-    }
-
-    if (pipePos.position.x <= 0) {
-      frSetBodyTransform(pipes[i].body, (frTransform){.angle = pipePos.angle,
-                                                      .rotation = pipePos.rotation,
-                                                      .position = screenWidth,
-                                                      pipePos.position.y});
+    if (pipePos.x <= 0) {
+      frSetBodyPosition(pipeBody, (frVector2){.x = screenWidth, .y = pipePos.y});
     }
   }
 
@@ -188,7 +176,8 @@ static void UpdatePhysics(void) {
 
 static void DrawPipes(void) {
   for (int i = 0; i < PIPES_COUNT; i++) {
-    frTransform pipePos = frGetBodyTransform(pipes[i].body);
+    frBody *pipeBody = frGetBodyFromWorld(world, i);
+    frVector2 pipePos = frVector2UnitsToPixels(frGetBodyPosition(pipeBody));
 
     int rotation = 0;
     Vector2 origin = (Vector2){.x = 0, .y = 0};
@@ -203,10 +192,10 @@ static void DrawPipes(void) {
     DrawTexturePro(
         pipeTexture,
         (Rectangle){.x = 0, .y = 0, .width = pipeTexture.width, .height = pipeTexture.height},
-        (Rectangle){.x = pipePos.position.x,
-                    .y = pipePos.position.y,
+        (Rectangle){.x = pipePos.x,
+                    .y = pipePos.y,
                     .width = pipeTexture.width,
                     .height = pipeTexture.height},
-        origin, rotation, WHITE);
+        (Vector2){.x = pipeTexture.width / 2, .y = pipeTexture.height / 2}, 0, WHITE);
   }
 }
