@@ -24,6 +24,7 @@
 
 #include "ferox.h"
 #include "raylib.h"
+#include "raymath.h"
 #include "stdio.h"
 
 #define FEROX_RAYLIB_IMPLEMENTATION
@@ -39,7 +40,7 @@
 #define SCREEN_WIDTH 400
 #define SCREEN_HEIGHT 600
 #define PIPES_QTY 8
-#define PIPE_BASE_VEL -20.0f
+#define PIPE_BASE_VEL -15.0f
 #define JUMP_FORCE -20.0f
 
 /* Constants ============================================================================ */
@@ -55,6 +56,9 @@ static frBody *birdBody, *ground;
 static Texture2D pipeTexture, birdTexture;
 
 static Rectangle bounds = {.width = SCREEN_WIDTH, .height = SCREEN_HEIGHT};
+
+static int lowestLowerY;
+static int highestLowerY;
 
 /* Private Function Prototypes ========================================================== */
 
@@ -94,8 +98,10 @@ int main(void) {
 static void InitExample(void) {
   pipeTexture = LoadTexture("resources/sprites/pipe-green.png");
   birdTexture = LoadTexture("resources/sprites/yellowbird-midflap.png");
+  highestLowerY = SCREEN_HEIGHT - pipeTexture.height * 2;
+  lowestLowerY = pipeTexture.height + pipeTexture.height / 2;
 
-  world = frCreateWorld(frVector2ScalarMultiply(FR_WORLD_DEFAULT_GRAVITY, 4.0f), CELL_SIZE);
+  world = frCreateWorld(frVector2ScalarMultiply(FR_WORLD_DEFAULT_GRAVITY, 5.0f), CELL_SIZE);
 
   ground = frCreateBodyFromShape(
       FR_BODY_STATIC,
@@ -177,7 +183,6 @@ static void DrawPipes(void) {
 
     if (i % 2 == 0) {
       rotation = 0;
-
     } else {
       rotation = 180;
     }
@@ -194,15 +199,26 @@ static void DrawPipes(void) {
   }
 }
 
+static int randomYOffset() { return lowestLowerY + rand() % highestLowerY; }
+
 static void UpdatePipes(void) {
+  int yOffset;
+
   for (int i = 0; i < PIPES_QTY; i++) {
+
+    if (i % 2 == 0) { // LOWER PIPES
+      yOffset = randomYOffset();
+    } else { // UPPER PIPES
+      yOffset = yOffset - pipeTexture.height - 120;
+    }
+
     frBody *pipeBody = frGetBodyFromWorld(world, i);
     frVector2 pipePos = frVector2UnitsToPixels(frGetBodyPosition(pipeBody));
 
     if (pipePos.x <= -pipeTexture.width) {
       frSetBodyPosition(pipeBody,
                         frVector2PixelsToUnits((frVector2){
-                            .x = SCREEN_WIDTH * 1.5 + pipeTexture.width + 100, .y = pipePos.y}));
+                            .x = SCREEN_WIDTH * 1.5 + pipeTexture.width + 100, .y = yOffset}));
     }
   }
 }
