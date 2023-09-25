@@ -36,11 +36,11 @@
 /* Macros =============================================================================== */
 
 #define TARGET_FPS 60
-
 #define SCREEN_WIDTH 400
 #define SCREEN_HEIGHT 600
 #define PIPES_QTY 8
 #define PIPE_BASE_VEL -20.0f
+#define JUMP_FORCE -20.0f
 
 /* Constants ============================================================================ */
 
@@ -50,7 +50,7 @@ static const float CELL_SIZE = 4.0f, DELTA_TIME = 1.0f / TARGET_FPS;
 
 static frWorld *world;
 
-static frBody *box, *ground;
+static frBody *birdBody, *ground;
 
 static Texture2D pipeTexture, birdTexture;
 
@@ -127,26 +127,24 @@ static void InitExample(void) {
     frAddBodyToWorld(world, movingPipe);
   }
 
-  box = frCreateBodyFromShape(
+  birdBody = frCreateBodyFromShape(
       FR_BODY_DYNAMIC,
       frVector2PixelsToUnits((frVector2){.x = 0.5f * SCREEN_WIDTH, .y = 0.35f * SCREEN_HEIGHT}),
       frCreateCircle((frMaterial){.density = 1.0f, .friction = 0.35f}, birdTexture.height / 14));
-  // frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f}, frPixelsToUnits(45.0f),
-  //                   frPixelsToUnits(45.0f)));
 
-  frAddBodyToWorld(world, box);
+  frAddBodyToWorld(world, birdBody);
   frAddBodyToWorld(world, ground);
 }
 
 static void HandleInput(void) {
-  if (IsKeyDown(KEY_SPACE)) {
-    frSetBodyVelocity(box, (frVector2){.x = 0, .y = -15.0f});
+  if (IsKeyPressed(KEY_SPACE)) {
+    frSetBodyVelocity(birdBody, (frVector2){.x = 0, .y = JUMP_FORCE});
   }
 }
 
 static void UpdateExample(void) {
   frUpdateWorld(world, DELTA_TIME);
-  frVector2 birdPos = frVector2UnitsToPixels(frGetBodyPosition(box));
+  frVector2 birdPos = frVector2UnitsToPixels(frGetBodyPosition(birdBody));
   HandleInput();
   UpdatePipes();
 
@@ -159,7 +157,7 @@ static void UpdateExample(void) {
 
     frDrawBodyLines(ground, 1.0f, GRAY);
 
-    frDrawBodyLines(box, 1.0f, BLUE);
+    frDrawBodyLines(birdBody, 1.0f, BLUE);
     DrawTexture(birdTexture, birdPos.x - 15, birdPos.y - 10, WHITE);
 
     DrawPipes();
@@ -201,7 +199,7 @@ static void UpdatePipes(void) {
     frBody *pipeBody = frGetBodyFromWorld(world, i);
     frVector2 pipePos = frVector2UnitsToPixels(frGetBodyPosition(pipeBody));
 
-    if (pipePos.x <= 0) {
+    if (pipePos.x <= -pipeTexture.width) {
       frSetBodyPosition(pipeBody,
                         frVector2PixelsToUnits((frVector2){
                             .x = SCREEN_WIDTH * 1.5 + pipeTexture.width + 100, .y = pipePos.y}));
@@ -210,10 +208,21 @@ static void UpdatePipes(void) {
 }
 
 static void DeinitExample(void) {
-  frReleaseShape(frGetBodyShape(ground));
-  frReleaseShape(frGetBodyShape(box));
 
+  /**
+   * Ferox stuff - No need to release bodies.
+   */
+  frReleaseShape(frGetBodyShape(ground));
+  frReleaseShape(frGetBodyShape(birdBody));
+  for (int i = 0; i < PIPES_QTY; i++) {
+    frBody *pipeBody = frGetBodyFromWorld(world, i);
+    frReleaseShape(frGetBodyShape(pipeBody));
+  }
   frReleaseWorld(world);
 
+  /**
+   * RayLib stuff
+   */
   UnloadTexture(pipeTexture);
+  UnloadTexture(birdTexture);
 }
