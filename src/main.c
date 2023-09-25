@@ -1,194 +1,187 @@
-#include <stdio.h>
+/*
+    Copyright (c) 2021-2023 Jaedeok Kim <jdeokkim@protonmail.com>
 
-#include <ferox.h>
-#include <raylib.h>
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
 
-#if defined(PLATFORM_WEB)
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+*/
+
+/* Includes ============================================================================= */
+
+#include "ferox.h"
+#include "raylib.h"
+#include "stdio.h"
+
+#define FEROX_RAYLIB_IMPLEMENTATION
+#include "ferox-raylib.h"
+
+#ifdef PLATFORM_WEB
 #include <emscripten/emscripten.h>
 #endif
 
+/* Macros =============================================================================== */
+
 #define TARGET_FPS 60
+
+#define SCREEN_WIDTH 800
+#define SCREEN_HEIGHT 600
+#define PIPES_QTY 8
+
+/* Constants ============================================================================ */
 
 static const float CELL_SIZE = 4.0f, DELTA_TIME = 1.0f / TARGET_FPS;
 
-//----------------------------------------------------------------------------------
-// Local Variables Definition (local to this module)
-//----------------------------------------------------------------------------------
-
-struct Pipe {
-  int id;
-  frBody *body;
-};
-
-const int screenWidth = 600;
-const int screenHeight = 450;
-
-const int gravityY = 250;
-const int jumpForce = -150;
-
-const int PIPES_COUNT = 8;
-
-Texture2D birdTexture;
-Texture2D pipeTexture;
-
-float mass = 1;
-float radius;
-float timeStep = 1.0 / 60.0;
-float moment;
-
-frBody *birdBody;
-frShape *birdShape;
+/* Private Variables ==================================================================== */
 
 static frWorld *world;
 
-struct Pipe pipes[] = {}; // 8 pipes in total (2 up and 2 down)
+static frBody *box, *ground;
 
-//----------------------------------------------------------------------------------
-// Local Functions Declaration
-//----------------------------------------------------------------------------------
-static void UpdateDrawFrame(void); // Draw one frame
-static void UpdatePhysics(void);   // Make a step in the physics engine
-static void HandleInput(void);     // Capture user input and do stuff
+static Texture2D pipeTexture, birdTexture;
+
+static Rectangle bounds = {.width = SCREEN_WIDTH, .height = SCREEN_HEIGHT};
+
+/* Private Function Prototypes ========================================================== */
+
+static void InitExample(void);
+static void UpdateExample(void);
+static void DeinitExample(void);
 static void DrawPipes(void);
 
-//----------------------------------------------------------------------------------
-// Main entry point
-//----------------------------------------------------------------------------------
-int main() {
-  // Initialization
-  //--------------------------------------------------------------------------------------
+/* Public Functions ===================================================================== */
 
-  InitWindow(screenWidth, screenHeight, "raylib");
+int main(void) {
+  SetConfigFlags(FLAG_MSAA_4X_HINT);
 
-  birdTexture = LoadTexture("resources/sprites/yellowbird-midflap.png");
-  pipeTexture = LoadTexture("resources/sprites/pipe-green.png");
+  InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "c-krit/ferox | basic.c");
 
-  radius = birdTexture.height / 2; // TODO: Change player collision to use polygonshape instead
+  InitExample();
 
-  world = frCreateWorld(frVector2ScalarMultiply(FR_WORLD_DEFAULT_GRAVITY, 20.0f), CELL_SIZE);
-
-  for (int i = 0; i < PIPES_COUNT; i++) {
-    int x_offset_factor = i;
-    int yOffset = 0;
-
-    if (i % 2 == 0) {
-      yOffset = -(pipeTexture.height / 2);
-    } else {
-      yOffset = -(pipeTexture.height);
-      x_offset_factor -= 1;
-    }
-
-    frBody *pipeBody = frCreateBodyFromShape(
-        FR_BODY_KINEMATIC,
-        frVector2PixelsToUnits(
-            (frVector2){.x = screenWidth * 1.5 + pipeTexture.width + 100 * x_offset_factor,
-                        .y = screenHeight + yOffset}),
-        frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f},
-                          frPixelsToUnits(pipeTexture.width), frPixelsToUnits(pipeTexture.height)));
-
-    frAddBodyToWorld(world, pipeBody);
-    frSetBodyVelocity(pipeBody, (frVector2){.x = -10.0f, .y = 0.0f});
-  }
-
-  birdBody = frCreateBodyFromShape(
-      FR_BODY_DYNAMIC,
-      frVector2PixelsToUnits((frVector2){.x = screenWidth / 2, .y = screenHeight / 3}),
-      // frCreateCircle((frMaterial){.density = 10.0f, .friction = 2.0f}, radius));
-      frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f},
-                        frPixelsToUnits(birdTexture.width), frPixelsToUnits(birdTexture.height)));
-
-  frAddBodyToWorld(world, birdBody);
-
-  //--------------------------------------------------------------------------------------
-
-#if defined(PLATFORM_WEB)
-  emscripten_set_main_loop(UpdateDrawFrame, 60, 1);
+#ifdef PLATFORM_WEB
+  emscripten_set_main_loop(UpdateExample, 0, 1);
 #else
-  SetTargetFPS(60); // Set our game to run at 60 frames-per-second
-  //--------------------------------------------------------------------------------------
+  SetTargetFPS(TARGET_FPS);
 
-  // Main game loop
-  while (!WindowShouldClose()) // Detect window close button or ESC key
-  {
-    UpdateDrawFrame();
-  }
+  while (!WindowShouldClose())
+    UpdateExample();
 #endif
 
-  UnloadTexture(birdTexture);
-  UnloadTexture(pipeTexture);
+  DeinitExample();
 
-  // De-Initialization
-  //--------------------------------------------------------------------------------------
-  CloseWindow(); // Close window and OpenGL context
-  //--------------------------------------------------------------------------------------
+  CloseWindow();
 
   return 0;
 }
 
+/* Private Functions ==================================================================== */
+
+static void InitExample(void) {
+  pipeTexture = LoadTexture("resources/sprites/pipe-green.png");
+  birdTexture = LoadTexture("resources/sprites/yellowbird-midflap.png");
+
+  world = frCreateWorld(frVector2ScalarMultiply(FR_WORLD_DEFAULT_GRAVITY, 4.0f), CELL_SIZE);
+
+  ground = frCreateBodyFromShape(
+      FR_BODY_STATIC,
+      frVector2PixelsToUnits((frVector2){.x = 0.5f * SCREEN_WIDTH, .y = 0.85f * SCREEN_HEIGHT}),
+      frCreateRectangle((frMaterial){.density = 1.25f, .friction = 0.5f},
+                        frPixelsToUnits(0.75f * SCREEN_WIDTH),
+                        frPixelsToUnits(0.1f * SCREEN_HEIGHT)));
+
+  for (int i = 0; i < PIPES_QTY; i++) {
+    int x_offset_factor = i;
+    int yOffset = 0;
+
+    if (i % 2 == 0) {
+      yOffset = -(pipeTexture.height / 4);
+    } else {
+      yOffset = -(pipeTexture.height) * 2;
+      x_offset_factor -= 1;
+    }
+
+    frBody *movingPipe = frCreateBodyFromShape(
+        FR_BODY_KINEMATIC,
+        frVector2PixelsToUnits(
+            (frVector2){.x = SCREEN_WIDTH * 1.5 + pipeTexture.width + 100 * x_offset_factor,
+                        .y = SCREEN_HEIGHT + yOffset}),
+        frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f},
+                          frPixelsToUnits(pipeTexture.width), frPixelsToUnits(pipeTexture.height)));
+
+    frSetBodyVelocity(movingPipe, (frVector2){.x = -10.0f, .y = 0.0f});
+    frAddBodyToWorld(world, movingPipe);
+  }
+
+  box = frCreateBodyFromShape(
+      FR_BODY_DYNAMIC,
+      frVector2PixelsToUnits((frVector2){.x = 0.5f * SCREEN_WIDTH, .y = 0.35f * SCREEN_HEIGHT}),
+      frCreateCircle((frMaterial){.density = 1.0f, .friction = 0.35f}, birdTexture.height / 14));
+  // frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f}, frPixelsToUnits(45.0f),
+  //                   frPixelsToUnits(45.0f)));
+
+  frAddBodyToWorld(world, box);
+  frAddBodyToWorld(world, ground);
+}
+
 static void HandleInput(void) {
   if (IsKeyDown(KEY_SPACE)) {
-    frSetBodyVelocity(birdBody, (frVector2){.x = 0, .y = jumpForce});
+    frSetBodyVelocity(box, (frVector2){.x = 0, .y = -15.0f});
   }
 }
 
-// Update and draw game frame
-static void UpdateDrawFrame(void) {
-  // Draw, DONT PLACE ANY LOGIC HERE! Only draw.
-  //----------------------------------------------------------------------------------
-  BeginDrawing();
-
-  ClearBackground(RAYWHITE);
-
-  frVector2 birdPos = frGetBodyPosition(birdBody);
-
-  DrawTexture(birdTexture, birdPos.x, birdPos.y, WHITE);
-
-  DrawPipes();
-  // DrawTexture(pipeTexture, pipePos.x, pipePos.y, WHITE);
-
-  // DrawText("This is a raylib example", 10, 40, 20, DARKGRAY);
-
-  DrawFPS(10, 10);
-
-  EndDrawing();
-  //----------------------------------------------------------------------------------
-
-  // Update Physics, Input and Logic
-  // ---------------------------------------------------------------------------------
-  UpdatePhysics();
-  // UpdatePipes();
-  HandleInput();
-}
-
-static void UpdatePhysics(void) {
-
-  for (int i = 0; i < PIPES_COUNT; i++) {
-    frBody *pipeBody = frGetBodyFromWorld(world, i);
-    frVector2 pipePos = frVector2UnitsToPixels(frGetBodyPosition(pipeBody));
-
-    if (pipePos.x <= 0) {
-      frSetBodyPosition(pipeBody, (frVector2){.x = screenWidth, .y = pipePos.y});
-    }
-  }
-
+static void UpdateExample(void) {
   frUpdateWorld(world, DELTA_TIME);
+  HandleInput();
+  frVector2 birdPos = frVector2UnitsToPixels(frGetBodyPosition(box));
+
+  {
+    BeginDrawing();
+
+    ClearBackground(FR_DRAW_COLOR_MATTEBLACK);
+
+    frDrawGrid(bounds, CELL_SIZE, 0.25f, ColorAlpha(DARKGRAY, 0.75f));
+
+    frDrawBodyLines(ground, 1.0f, GRAY);
+
+    frDrawBodyLines(box, 1.0f, BLUE);
+    DrawTexture(birdTexture, birdPos.x - 15, birdPos.y - 10, WHITE);
+
+    DrawPipes();
+
+    DrawFPS(8, 8);
+
+    EndDrawing();
+  }
 }
 
 static void DrawPipes(void) {
-  for (int i = 0; i < PIPES_COUNT; i++) {
+  for (int i = 0; i < PIPES_QTY; i++) {
     frBody *pipeBody = frGetBodyFromWorld(world, i);
     frVector2 pipePos = frVector2UnitsToPixels(frGetBodyPosition(pipeBody));
 
     int rotation = 0;
-    Vector2 origin = (Vector2){.x = 0, .y = 0};
 
     if (i % 2 == 0) {
       rotation = 0;
+
     } else {
       rotation = 180;
-      origin = (Vector2){.x = pipeTexture.width, .y = 0};
     }
 
+    frDrawBodyLines(pipeBody, 3.0f, WHITE);
     DrawTexturePro(
         pipeTexture,
         (Rectangle){.x = 0, .y = 0, .width = pipeTexture.width, .height = pipeTexture.height},
@@ -196,6 +189,15 @@ static void DrawPipes(void) {
                     .y = pipePos.y,
                     .width = pipeTexture.width,
                     .height = pipeTexture.height},
-        (Vector2){.x = pipeTexture.width / 2, .y = pipeTexture.height / 2}, 0, WHITE);
+        (Vector2){.x = pipeTexture.width / 2, .y = pipeTexture.height / 2}, rotation, WHITE);
   }
+}
+
+static void DeinitExample(void) {
+  frReleaseShape(frGetBodyShape(ground));
+  frReleaseShape(frGetBodyShape(box));
+
+  frReleaseWorld(world);
+
+  UnloadTexture(pipeTexture);
 }
