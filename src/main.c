@@ -35,14 +35,14 @@ static const float CELL_SIZE = 4.0f, DELTA_TIME = 1.0f / TARGET_FPS;
 
 static frWorld *world;
 
-static frBody *birdBody;
+static frBody *birdBody, *groundBody;
 
 static Rectangle bounds = {.width = SCREEN_WIDTH, .height = SCREEN_HEIGHT};
 
 static int lowestLowerY;
 static int highestLowerY;
 
-static Texture2D pipeTexture, birdTexture, backgroundDayTexture;
+static Texture2D pipeTexture, birdTexture, backgroundDayTexture, groundTexture;
 
 /* Private Function Prototypes ========================================================== */
 
@@ -88,6 +88,7 @@ static void InitExample(void) {
   pipeTexture = LoadTexture("resources/sprites/pipe-green.png");
   birdTexture = LoadTexture("resources/sprites/yellowbird-midflap.png");
   backgroundDayTexture = LoadTexture("resources/sprites/background-day.png");
+  groundTexture = LoadTexture("resources/sprites/base.png");
 
   /**
    * Define the range in which the lower pipes can be generated
@@ -141,7 +142,14 @@ static void InitExample(void) {
       frVector2PixelsToUnits((frVector2){.x = 0.5f * SCREEN_WIDTH, .y = 0.35f * SCREEN_HEIGHT}),
       frCreateCircle((frMaterial){.density = 1.0f, .friction = 0.35f}, birdTexture.height / 14));
 
+  groundBody = frCreateBodyFromShape(
+      FR_BODY_STATIC, // It collides
+      frVector2PixelsToUnits((frVector2){.x = 0, .y = SCREEN_HEIGHT - groundTexture.height / 2}),
+      frCreateRectangle((frMaterial){.density = 1.0f, .friction = 0.35f},
+                        frPixelsToUnits(SCREEN_WIDTH), frPixelsToUnits(1.0f)));
+
   frAddBodyToWorld(world, birdBody);
+  frAddBodyToWorld(world, groundBody);
 }
 
 static void HandleInput(void) {
@@ -165,10 +173,14 @@ static void UpdateExample(void) {
 
     DrawPipes();
 
+    DrawTextureEx(groundTexture, (Vector2){0, SCREEN_HEIGHT - groundTexture.height / 2}, 0.0f, 1.4f,
+                  WHITE);
+
     // frDrawGrid(bounds, CELL_SIZE, 0.25f, ColorAlpha(DARKGRAY, 0.75f)); -> debug with cells
 
     // Draw player with collision shape in blue
-    frDrawBodyLines(birdBody, 1.0f, BLUE);
+    // frDrawBodyLines(birdBody, 1.0f, BLUE);
+    // some offsets to match the body shape
     DrawTexture(birdTexture, birdPos.x - 15, birdPos.y - 10, WHITE);
 
     DrawFPS(8, 8);
@@ -190,7 +202,7 @@ static void DrawPipes(void) {
       rotation = 180;
     }
 
-    frDrawBodyLines(pipeBody, 3.0f, WHITE);
+    // frDrawBodyLines(pipeBody, 3.0f, WHITE);
     DrawTexturePro(
         pipeTexture,
         (Rectangle){.x = 0, .y = 0, .width = pipeTexture.width, .height = pipeTexture.height},
@@ -238,5 +250,6 @@ static void DeinitExample(void) {
    */
   UnloadTexture(pipeTexture);
   UnloadTexture(birdTexture);
+  UnloadTexture(groundTexture);
   UnloadTexture(backgroundDayTexture);
 }
