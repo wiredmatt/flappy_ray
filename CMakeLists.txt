@@ -23,34 +23,38 @@ if (NOT raylib_FOUND) # If there's none, fetch and build raylib
   endif()
 endif()
 
-include(FetchContent)
-FetchContent_Declare(
-	ferox
-	GIT_REPOSITORY
-	https://github.com/c-krit/ferox
-	GIT_TAG main
-)
-FetchContent_GetProperties(ferox)
-if (NOT ferox_POPULATED) # Have we downloaded raylib yet?
-	set(FETCHCONTENT_QUIET NO)
-	FetchContent_Populate(ferox)
+set(ferox_VERSION 4.5.0)
+find_package(ferox ${ferox_VERSION} QUIET) # QUIET or REQUIRED
+if (NOT ferox_FOUND) # If there's none, fetch and build ferox
+  include(FetchContent)
+  FetchContent_Declare(
+    ferox
+    GIT_REPOSITORY
+    https://github.com/c-krit/ferox
+    GIT_TAG main
+  )
+  FetchContent_GetProperties(ferox)
+  if (NOT ferox_POPULATED) # Have we downloaded ferox yet?
+    set(FETCHCONTENT_QUIET NO)
+    FetchContent_Populate(ferox)
+        
+    add_library(ferox STATIC
+      ${ferox_SOURCE_DIR}/src/broad-phase.c
+      ${ferox_SOURCE_DIR}/src/collision.c
+      ${ferox_SOURCE_DIR}/src/geometry.c
+      ${ferox_SOURCE_DIR}/src/rigid-body.c
+      ${ferox_SOURCE_DIR}/src/timer.c
+      ${ferox_SOURCE_DIR}/src/world.c
+    )
+    target_include_directories(ferox PUBLIC
+      ${ferox_SOURCE_DIR}/include
+      ${ferox_SOURCE_DIR}/examples/include
+    )
+    target_include_directories(ferox PRIVATE
+      ${ferox_SOURCE_DIR}/ferox/src/external
+    )
+  endif()
 endif()
-
-add_library(ferox STATIC
-	${ferox_SOURCE_DIR}/src/broad-phase.c
-	${ferox_SOURCE_DIR}/src/collision.c
-	${ferox_SOURCE_DIR}/src/geometry.c
-	${ferox_SOURCE_DIR}/src/rigid-body.c
-	${ferox_SOURCE_DIR}/src/timer.c
-	${ferox_SOURCE_DIR}/src/world.c
-)
-target_include_directories(ferox PUBLIC
-	${ferox_SOURCE_DIR}/include
-	${ferox_SOURCE_DIR}/examples/include
-)
-target_include_directories(ferox PRIVATE
-	${ferox_SOURCE_DIR}/ferox/src/external
-)
 
 # Our Project
 
