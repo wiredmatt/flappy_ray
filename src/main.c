@@ -6,6 +6,7 @@
 /* Includes ============================================================================= */
 
 #include "ferox.h"
+#include "raygui.h"
 #include "raylib.h"
 #include "raymath.h"
 #include "stdio.h"

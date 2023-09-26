@@ -23,7 +23,7 @@ if (NOT raylib_FOUND) # If there's none, fetch and build raylib
   endif()
 endif()
 
-set(ferox_VERSION 4.5.0)
+set(ferox_VERSION 0.8.1)
 find_package(ferox ${ferox_VERSION} QUIET) # QUIET or REQUIRED
 if (NOT ferox_FOUND) # If there's none, fetch and build ferox
   include(FetchContent)
@@ -53,6 +53,24 @@ if (NOT ferox_FOUND) # If there's none, fetch and build ferox
     target_include_directories(ferox PRIVATE
       ${ferox_SOURCE_DIR}/ferox/src/external
     )
+  endif()
+endif()
+
+set(raygui_VERSION 4.0)
+find_package(raygui ${raygui_VERSION} QUIET)
+if (NOT raygui_FOUND)
+  include(FetchContent)
+  FetchContent_Declare(
+    raygui
+    GIT_REPOSITORY
+    https://github.com/raysan5/raygui
+    GIT_TAG master
+  )
+  FetchContent_GetProperties(raygui)
+  if (NOT raygui_POPULATED)
+    set(FETCHCONTENT_QUIET NO)
+    FetchContent_Populate(raygui)
+    include_directories(${raygui_SOURCE_DIR}/src)
   endif()
 endif()
 
