@@ -69,17 +69,8 @@ add_executable(${PROJECT_NAME} src/main.c)
 And with this, it makes the libraries accessible to your code, in src/\<file>.c
 ```CMake
 target_link_libraries(${PROJECT_NAME} raylib)
-target_link_libraries(${PROJECT_NAME} flecs)
-target_link_libraries(${PROJECT_NAME} chipmunk)
+target_link_libraries(${PROJECT_NAME} ferox)
 ```
-
-Only consideration for the dependencies of this project is Chipmunk. As you can read in its declaration, it contains an additional instruction the other two don't have: 
-
-```CMake
-include_directories(${chipmunk_SOURCE_DIR}/include)
-```
-
-Some C libraries are like this, the header is in a separate location and you need to manually specify it.
 
 ## Motivation
 
@@ -93,3 +84,10 @@ This is a little experiment to see if going barebones is doable and worth it. So
 > "Even Beethoven wrote his simphony in C" - Another random YouTube comment
 
 > "Nothing Better than C" - Linus Torvalds
+
+
+### Conclusions
+
+After playing around with this example and a lot of uncommited work regarding lighting and shadows, particles, resulting code and stuff alike, I've arrived at point where I think low level game dev is possible, achievable and worth the work... in the long run. I think everybody should start here before moving to a framework or an engine.
+
+My next steps will be a more batteries included framework. Check my list of options [here](https://github.com/wiredmatt/the-engineless-way).

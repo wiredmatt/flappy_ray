@@ -6,7 +6,6 @@
 /* Includes ============================================================================= */
 
 #include "ferox.h"
-#include "raygui.h"
 #include "raylib.h"
 #include "raymath.h"
 #include "stdio.h"
@@ -45,13 +44,18 @@ static int highestLowerY;
 
 static Texture2D pipeTexture, birdTexture, backgroundDayTexture, groundTexture;
 
+bool alive = true;
+
 /* Private Function Prototypes ========================================================== */
 
-static void InitExample(void);
-static void UpdateExample(void);
-static void DeinitExample(void);
+static void InitGame(void);
+static void UpdateGame(void);
+static void DeInitGame(void);
 static void DrawPipes(void);
 static void UpdatePipes(void);
+static void HandleCollision(void);
+// static bool BirdCollisionBegin(frBodyPair key, const frCollision *value);
+// static bool BirdCollisionEnd(frBodyPair key, const frCollision *value);
 
 /* Public Functions ===================================================================== */
 
@@ -62,18 +66,18 @@ int main(void) {
 
   InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "c-krit/ferox | basic.c");
 
-  InitExample();
+  InitGame();
 
 #ifdef PLATFORM_WEB
-  emscripten_set_main_loop(UpdateExample, 0, 1);
+  emscripten_set_main_loop(UpdateGame, 0, 1);
 #else
   SetTargetFPS(TARGET_FPS);
 
   while (!WindowShouldClose())
-    UpdateExample();
+    UpdateGame();
 #endif
 
-  DeinitExample();
+  DeInitGame();
 
   CloseWindow();
 
@@ -82,7 +86,7 @@ int main(void) {
 
 /* Private Functions ==================================================================== */
 
-static void InitExample(void) {
+static void InitGame(void) {
   /**
    * Load the sprites to use
    */
@@ -151,7 +155,23 @@ static void InitExample(void) {
 
   frAddBodyToWorld(world, birdBody);
   frAddBodyToWorld(world, groundBody);
+
+  // NOTE: This should work but it's not? Should ask https://github.com/jdeokkim about it.
+  // frSetWorldCollisionHandler(
+  //     world, (frCollisionHandler){.preStep = BirdCollisionBegin, .postStep = BirdCollisionEnd});
 }
+
+// static bool BirdCollisionBegin(frBodyPair key, const frCollision *value) {
+//   printf("Bird collided with something!\n");
+
+//   return true;
+// }
+
+// static bool BirdCollisionEnd(frBodyPair key, const frCollision *value) {
+//   printf("Bird collided with something!\n");
+
+//   return true;
+// }
 
 static void HandleInput(void) {
   if (IsKeyPressed(KEY_SPACE)) {
@@ -159,11 +179,34 @@ static void HandleInput(void) {
   }
 }
 
-static void UpdateExample(void) {
+static void HandleCollision(void) {
+  frCollision collWPipes;
+  frCollision collWGround;
+
+  frComputeCollision(frGetBodyShape(birdBody), frGetBodyTransform(birdBody),
+                     frGetBodyShape(groundBody), frGetBodyTransform(groundBody), &collWGround);
+
+  for (int i = 0; i < PIPES_QTY; i++) {
+    frBody *pipeBody = frGetBodyFromWorld(world, i);
+
+    frComputeCollision(frGetBodyShape(birdBody), frGetBodyTransform(birdBody),
+                       frGetBodyShape(pipeBody), frGetBodyTransform(pipeBody), &collWPipes);
+  }
+
+  if (collWGround.count > 0 || collWPipes.count > 0) {
+    frSetBodyVelocity(birdBody, (frVector2){.x = 0, .y = 0});
+    printf("Bird collided with something!\n");
+    // TODO: Handle your end state here!
+  }
+}
+
+static void UpdateGame(void) {
   frUpdateWorld(world, DELTA_TIME);
   frVector2 birdPos = frVector2UnitsToPixels(frGetBodyPosition(birdBody));
   HandleInput();
+
   UpdatePipes();
+  HandleCollision();
 
   {
     BeginDrawing();
@@ -235,11 +278,12 @@ static void UpdatePipes(void) {
   }
 }
 
-static void DeinitExample(void) {
+static void DeInitGame(void) {
   /**
    * Ferox stuff - No need to release bodies.
    */
   frReleaseShape(frGetBodyShape(birdBody));
+  frReleaseShape(frGetBodyShape(groundBody));
   for (int i = 0; i < PIPES_QTY; i++) {
     frBody *pipeBody = frGetBodyFromWorld(world, i);
     frReleaseShape(frGetBodyShape(pipeBody));

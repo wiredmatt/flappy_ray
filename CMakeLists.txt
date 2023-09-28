@@ -56,24 +56,6 @@ if (NOT ferox_FOUND) # If there's none, fetch and build ferox
   endif()
 endif()
 
-set(raygui_VERSION 4.0)
-find_package(raygui ${raygui_VERSION} QUIET)
-if (NOT raygui_FOUND)
-  include(FetchContent)
-  FetchContent_Declare(
-    raygui
-    GIT_REPOSITORY
-    https://github.com/raysan5/raygui
-    GIT_TAG master
-  )
-  FetchContent_GetProperties(raygui)
-  if (NOT raygui_POPULATED)
-    set(FETCHCONTENT_QUIET NO)
-    FetchContent_Populate(raygui)
-    include_directories(${raygui_SOURCE_DIR}/src)
-  endif()
-endif()
-
 # Our Project
 
 add_executable(${PROJECT_NAME} src/main.c)
